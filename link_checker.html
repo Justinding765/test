@@ -1,0 +1,144 @@
+<html>
+    <head>
+    </head>
+
+    <body>
+        <h1>Link Checker</h1>
+        <div>
+            <p><b>NOTICE:</b> Any links that return error and don't have "www." host,
+               will require the user to verify if the link is valid or not manually. Also user must be connected to the proxy
+            server to have the script run properly</p>
+            <h3>Prepend for Reference Links</h3> 
+            <form>
+                <select id="prepend">
+                <option  value="https://irpauth.osfi-bsif.gc.ca">https://irpauth.osfi-bsif.gc.ca</option>
+                <option value="https://www.osfi-bsif.gc.ca">https://www.osfi-bsif.gc.ca</option>
+                </select>
+                <br><br>
+            </form>
+        </div><br>
+        <textarea id="input" rows="50" cols="100">Paste text here.</textarea>
+        <p>
+            <button type = "button" id = "bypass_cors">Click to get access to the proxy server</button>
+        </p>
+        <p>
+            <button type = "button" onclick="create_file()">Check Links</button>
+        </p>
+
+        <script src=https://ajax.googleapis.com/ajax/libs/jquery/2.1.4/jquery.min.js></script>
+        <script type='text/javascript'>
+    $("#bypass_cors").click(function(){
+        window.open("https://cors-anywhere.herokuapp.com/corsdemo");
+
+    }); 
+            
+            //string that contains informations the error status of broken links
+            var content = "";
+            //stores links that must be manually checked
+            var urls = [];
+            var proxy = 'https://cors-anywhere.herokuapp.com/';
+            //gets status of link, or puts them into array "urls" to be checked manually
+            function getStatus(temp_link){
+                var opt = $('option[value="'+$("#prepend").val()+'"]');
+                opt_value = (opt.length ? opt.attr('value') : 'NO OPTION');
+                var link = ""
+                if(temp_link.includes("http") == false){
+                    if(opt_value.localeCompare("https://irpauth.osfi-bsif.gc.ca") == 0){
+                         link = "https://irpauth.osfi-bsif.gc.ca"+ temp_link;
+                    }
+
+                    else{
+                         link = "https://www.osfi-bsif.gc.ca"+ temp_link;
+                    }
+                }
+                else{
+                     link = temp_link
+                }
+                
+                $.ajax({
+                    // The proxy url expects as first URL parameter the URL to be bypassed
+                    // https://cors-anywhere.herokuapp.com/{my-url-to-bypass}
+                    url: proxy + link,
+                    complete: function(data) {
+                        //accounts for false positive for this host
+                        if (link.includes("www.osfi-bsif")){
+                            if(data.responseText.includes("404") && data.responseText.includes("We could not find that web page.")){
+                                content +=  link + " has an error of: 404" + "\n";
+                            }
+                        }
+                        //links that must be manually checked are links that are not of "www" host, and return error
+                        // Must check for false positive
+                        else if (link.includes("www") == false && data.responseText.includes("Not found because of proxy error: Error: getaddrinfo ENOTFOUND") ){
+                            urls.push(link)
+                        }
+                        else if(data.status < 200 || data.status >299 ){
+                            content +=  link + " has an error of: " + data.status + "\n";
+                        }
+
+                        
+                    },
+                });
+            }
+            // function get_array (){
+            //     var links;
+            //     var input = document.getElementById("input").value;
+            //     var parser = new DOMParser();
+            //     var doc = parser.parseFromString(input, "text/html");
+            //     //Gets all the links in the HTML code
+            //     var links = doc.getElementsByTagName("a")
+            //     //0th index to store public links, and first index to store specifcally other private links, like irpauth
+            //     var urls = [[], []];
+            //     var opt = $('option[value="'+$("#prepend").val()+'"]');
+            //     opt_value = (opt.length ? opt.attr('value') : 'NO OPTION');
+            //     for (var i=0; i<links.length; i++) {
+
+            //         if(links[i].getAttribute("href").includes("http") == false){
+            //             if(opt_value.localeCompare("https://irpauth.osfi-bsif.gc.ca") == 0){
+            //                 urls[1].push("https://irpauth.osfi-bsif.gc.ca"+ links[i].getAttribute("href"));
+            //             }
+
+            //             else{
+            //                 urls[0].push("https://www.osfi-bsif.gc.ca"+ links[i].getAttribute("href"));
+            //             }
+            //         }
+            //         else if(links[i].getAttribute("href").includes("www.") == true){
+            //             urls[0].push(links[i].getAttribute("href"));
+            //         }
+            //         else{
+            //             urls[1].push(links[i].getAttribute("href"));
+ 
+            //         }
+            //     }
+            //     return urls;
+
+            // }
+            function create_file(){
+                
+                var input = document.getElementById("input").value;
+                var parser = new DOMParser();
+                var doc = parser.parseFromString(input, "text/html");
+                //Gets all the <a> tags in the HTML code
+                var links = doc.getElementsByTagName("a")
+                //gets the status for all the links
+                for(var i = 0; i<links.length;i++){
+                    getStatus(links[i].getAttribute("href"));
+                }
+                $(document).ajaxStop(function () {      
+                    //Opens links that must be manually checked
+                    for(var i = 0;i <urls.length;i++){
+                        window.open(urls[i]);
+                    }
+                    urls = []
+                    var hiddenElement = document.createElement('a');
+                    hiddenElement.href = 'data:attachment/text,' + encodeURI(content); 
+                    content = ""   
+                    hiddenElement.target = '_blank';
+                    hiddenElement.download = 'Errors.txt';
+                    hiddenElement.click();
+                    $('#button1').one('click', clickHandler);
+                });
+            }
+
+        </script>
+    </body>
+</html>
